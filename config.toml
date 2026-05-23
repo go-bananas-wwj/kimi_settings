@@ -69,6 +69,7 @@ tool_call_timeout_ms = 120000
 
 [[hooks]]
 event = "UserPromptSubmit"
+command = ""
 inject_prompt = "~/.kimi/prompts/skill-eval-reminder.md"
 timeout = 5
 
