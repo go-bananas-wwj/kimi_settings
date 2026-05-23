@@ -85,9 +85,12 @@ ln -s "$REPO_DIR/prompts" "$KIMI_DIR/prompts"
 # -----------------------------------------------------------------------------
 # 5. Ensure runtime directories exist locally (not symlinked)
 # -----------------------------------------------------------------------------
-for subdir in sessions logs plans user-history credentials telemetry; do
+for subdir in sessions logs plans user-history credentials telemetry memories; do
     mkdir -p "$KIMI_DIR/$subdir"
 done
+
+mkdir -p "$KIMI_DIR/memories/sessions"
+mkdir -p "$KIMI_DIR/memories/raw"
 
 # -----------------------------------------------------------------------------
 # 6. Environment check
@@ -95,6 +98,7 @@ done
 echo ""
 echo "Skills count: $(ls -1 "$KIMI_DIR/skills" 2>/dev/null | wc -l)"
 echo "Prompts dir:  $(ls -1 "$KIMI_DIR/prompts" 2>/dev/null | wc -l) file(s)"
+echo "Memory sessions: $(ls -1 "$KIMI_DIR/memories/sessions" 2>/dev/null | wc -l)"
 echo ""
 echo "=== Post-install checks ==="
 
@@ -106,6 +110,15 @@ else
     echo "✅ SERVERCHAN_SENDKEY is set."
 fi
 
+# Copy default user profile if not exists
+if [[ ! -f "$KIMI_DIR/memories/USER_PROFILE.md" ]]; then
+    echo ""
+    echo "Creating default user profile..."
+    cp "$REPO_DIR/profiles/researcher.md" "$KIMI_DIR/memories/USER_PROFILE.md"
+    echo "Profile created at $KIMI_DIR/memories/USER_PROFILE.md"
+    echo "Edit this file to customize your preferences."
+fi
+
 echo ""
 echo "=== Installation complete ==="
 echo "Static configs are symlinked from: $REPO_DIR"
@@ -115,4 +128,5 @@ echo "Next steps:"
 echo "  1. If this is a new machine, run 'kimi' and use /login to authenticate."
 echo "  2. To add/update skills, edit files under $REPO_DIR/skills/ and git push."
 echo "  3. On other machines, run 'git pull' in $REPO_DIR to sync updates."
+echo "  4. Edit $KIMI_DIR/memories/USER_PROFILE.md to customize your profile."
 echo ""

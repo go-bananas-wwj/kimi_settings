@@ -1,3 +1,11 @@
+[USER CONTEXT — MANDATORY]
+
+Before responding, read ~/.kimi/memories/USER_PROFILE.md.
+If it exists, incorporate the user's background, preferences, and known oppositions into your reasoning.
+If it does not exist, proceed without it.
+
+---
+
 [SYSTEM REMINDER — MANDATORY]
 
 Before responding to the user's message, you MUST evaluate whether any available skills are relevant.

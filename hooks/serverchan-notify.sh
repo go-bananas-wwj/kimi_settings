@@ -40,8 +40,8 @@ if event == "Stop" and data.get("stop_hook_active"):
     log("Skipped: stop_hook_active is true")
     sys.exit(0)
 
-if event != "Stop":
-    log(f"Skipped: event is {event}, not Stop")
+if event not in ("Stop", "SessionEnd"):
+    log(f"Skipped: event is {event}, not Stop/SessionEnd")
     sys.exit(0)
 
 # Wait a moment for context.jsonl to be fully flushed to disk
@@ -166,6 +166,123 @@ try:
         log(f"ServerChan response: {body}")
 except Exception as e:
     log(f"ServerChan notify failed: {e}")
+
+# --- SessionEnd: extract memory summary ---
+if event == "SessionEnd":
+    import datetime
+
+    memory_dir = os.path.expanduser("~/.kimi/memories/sessions")
+    os.makedirs(memory_dir, exist_ok=True)
+
+    sessions_base = os.path.expanduser("~/.kimi/sessions")
+    target_session_dir = None
+
+    # Try session_id as session hash first
+    candidate = os.path.join(sessions_base, session_id)
+    if os.path.isdir(candidate):
+        target_session_dir = candidate
+    else:
+        # Fallback: find most recently modified session
+        latest_mtime = 0
+        if os.path.isdir(sessions_base):
+            for s in os.listdir(sessions_base):
+                sp = os.path.join(sessions_base, s)
+                if os.path.isdir(sp):
+                    mtime = os.path.getmtime(sp)
+                    if mtime > latest_mtime:
+                        latest_mtime = mtime
+                        target_session_dir = sp
+
+    if not target_session_dir:
+        log("No session directory found for summary")
+        sys.exit(0)
+
+    # Collect all turns in this session
+    turns = []
+    for turn in sorted(os.listdir(target_session_dir)):
+        tp = os.path.join(target_session_dir, turn)
+        ctx = os.path.join(tp, "context.jsonl")
+        if os.path.isdir(tp) and os.path.exists(ctx):
+            try:
+                with open(ctx, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                user_msgs = []
+                assistant_msgs = []
+                tool_calls = []
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    obj = json.loads(line)
+                    role = obj.get("role", "")
+                    if role == "user":
+                        content = obj.get("content", "")
+                        if isinstance(content, str) and content:
+                            user_msgs.append(content[:200])
+                    elif role == "assistant":
+                        content = obj.get("content", [])
+                        texts = []
+                        if isinstance(content, list):
+                            for item in content:
+                                if item.get("type") == "text":
+                                    t = item.get("text", "")
+                                    if t:
+                                        texts.append(t[:300])
+                        elif isinstance(content, str) and content:
+                            texts.append(content[:300])
+                        if texts:
+                            assistant_msgs.append(" ".join(texts))
+                    if role == "assistant" and isinstance(content, list):
+                        for item in content:
+                            if item.get("type") == "tool_call":
+                                tool_calls.append(item.get("tool_call", {}).get("name", "unknown"))
+                turns.append({
+                    "turn": turn,
+                    "user": user_msgs,
+                    "assistant": assistant_msgs,
+                    "tools": tool_calls,
+                })
+            except Exception as e:
+                log(f"Error reading turn {turn}: {e}")
+
+    if not turns:
+        log("No turns found in session")
+        sys.exit(0)
+
+    # Generate markdown summary
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    session_name = os.path.basename(target_session_dir)
+    summary_path = os.path.join(memory_dir, f"{timestamp}_{session_name}.md")
+
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write(f"# Session Summary: {session_name}\n")
+        f.write(f"- Date: {datetime.datetime.now().isoformat()}\n")
+        f.write(f"- CWD: {cwd}\n")
+        f.write(f"- Turns: {len(turns)}\n")
+        f.write(f"- Total tool calls: {sum(len(t['tools']) for t in turns)}\n\n")
+
+        if any(t["tools"] for t in turns):
+            all_tools = []
+            for t in turns:
+                all_tools.extend(t["tools"])
+            from collections import Counter
+            top_tools = Counter(all_tools).most_common(10)
+            f.write("## Top Tools Used\n")
+            for name, count in top_tools:
+                f.write(f"- {name}: {count}\n")
+            f.write("\n")
+
+        f.write("## Conversation Log\n\n")
+        for i, t in enumerate(turns, 1):
+            f.write(f"### Turn {i} ({t['turn']})\n")
+            if t["user"]:
+                f.write(f"**User:** {t['user'][0]}\n\n")
+            if t["assistant"]:
+                f.write(f"**Assistant:** {t['assistant'][0][:500]}...\n\n")
+            if t["tools"]:
+                f.write(f"**Tools:** {', '.join(set(t['tools']))}\n\n")
+
+    log(f"Session summary saved: {summary_path}")
 
 sys.exit(0)
 PYEOF
