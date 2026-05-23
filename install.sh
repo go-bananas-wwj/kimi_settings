@@ -15,6 +15,41 @@ echo "Repo dir: $REPO_DIR"
 echo "Target:   $KIMI_DIR"
 echo ""
 
+# -----------------------------------------------------------------------------
+# 0. Pre-flight checks
+# -----------------------------------------------------------------------------
+ERRORS=0
+
+if ! command -v kimi &>/dev/null; then
+    echo "❌ ERROR: Kimi CLI not found."
+    echo "   Please install it first: uv tool install kimi-cli"
+    echo "   https://docs.astral.sh/uv/getting-started/installation/"
+    ERRORS=$((ERRORS + 1))
+else
+    KIMI_VER=$(kimi --version 2>/dev/null | awk '{print $3}')
+    echo "✅ Kimi CLI: $KIMI_VER"
+fi
+
+if ! command -v python3 &>/dev/null; then
+    echo "⚠️  WARNING: python3 not found. Some skills may not work."
+else
+    echo "✅ Python 3: $(python3 --version 2>/dev/null | cut -d' ' -f2)"
+fi
+
+if ! command -v node &>/dev/null; then
+    echo "⚠️  WARNING: Node.js not found. Skills like web-access may not work."
+else
+    echo "✅ Node.js: $(node --version 2>/dev/null)"
+fi
+
+if [[ $ERRORS -gt 0 ]]; then
+    echo ""
+    echo "Install aborted due to missing required dependencies."
+    exit 1
+fi
+
+echo ""
+
 # Ensure ~/.kimi exists
 mkdir -p "$KIMI_DIR"
 
