@@ -67,15 +67,34 @@ echo "Linking skills/..."
 ln -s "$REPO_DIR/skills" "$KIMI_DIR/skills"
 
 # -----------------------------------------------------------------------------
-# 4. Ensure runtime directories exist locally (not symlinked)
+# 4. prompts/
+# -----------------------------------------------------------------------------
+if [[ -e "$KIMI_DIR/prompts" && ! -L "$KIMI_DIR/prompts" ]]; then
+    echo "Backing up existing prompts/ directory..."
+    mv "$KIMI_DIR/prompts" "$KIMI_DIR/prompts$BACKUP_SUFFIX"
+fi
+
+if [[ -L "$KIMI_DIR/prompts" ]]; then
+    echo "Removing old symlink for prompts/..."
+    rm "$KIMI_DIR/prompts"
+fi
+
+echo "Linking prompts/..."
+ln -s "$REPO_DIR/prompts" "$KIMI_DIR/prompts"
+
+# -----------------------------------------------------------------------------
+# 5. Ensure runtime directories exist locally (not symlinked)
 # -----------------------------------------------------------------------------
 for subdir in sessions logs plans user-history credentials telemetry; do
     mkdir -p "$KIMI_DIR/$subdir"
 done
 
 # -----------------------------------------------------------------------------
-# 5. Environment check
+# 6. Environment check
 # -----------------------------------------------------------------------------
+echo ""
+echo "Skills count: $(ls -1 "$KIMI_DIR/skills" 2>/dev/null | wc -l)"
+echo "Prompts dir:  $(ls -1 "$KIMI_DIR/prompts" 2>/dev/null | wc -l) file(s)"
 echo ""
 echo "=== Post-install checks ==="
 
